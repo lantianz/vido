@@ -51,11 +51,54 @@ macOS / Linux：
 
 ## 发布
 
-创建并推送符合语义化版本的 tag（例如 `v1.2.3`）会触发发布工作流。工作流会将去掉 `v` 的版本号写入 APK 的 `versionName`，并以 GitHub Actions 运行号生成递增的 `versionCode`，随后上传 APK 并创建 GitHub Release。
+创建并推送符合语义化版本的 tag（例如 `v1.2.3`）会触发发布工作流。普通推送到 `main` 不会创建 Release。工作流会将去掉 `v` 的版本号写入 APK 的 `versionName`，并以 GitHub Actions 运行号生成递增的 `versionCode`，随后上传 APK 并创建 GitHub Release。
+
+### 发布前检查
+
+发布 tag 指向 `main` 的已推送提交。执行前确认工作区无未提交文件、目标版本没有远程 tag，并确保需要发布的提交已经同步：
+
+```bash
+git status --short
+git fetch origin --tags
+git ls-remote --tags origin "v1.2.3"
+git push origin main
+```
+
+最后一条命令没有输出时，说明本地 `main` 已同步。若 `ls-remote` 返回了同名 tag，请使用新的版本号，不能直接覆盖已经发布的 tag。
+
+### 创建正式发布
 
 ```bash
 git tag -a v1.2.3 -m "v1.2.3"
 git push origin v1.2.3
 ```
 
-带预发布标识的 tag（例如 `v1.2.3-beta.1`）会创建预发布 Release。更新日志分类依赖 Pull Request label，约定见 [`.github/release.yml`](.github/release.yml)。
+带预发布标识的 tag（例如 `v1.2.3-beta.1`）会创建预发布 Release：
+
+```bash
+git tag -a v1.2.3-beta.1 -m "v1.2.3-beta.1"
+git push origin v1.2.3-beta.1
+```
+
+### 工作流行为与核验
+
+发布工作流会运行 `testDebugUnitTest` 和 `assembleDebug`，上传 `Vido-<版本>-debug.apk` artifact，并将该 debug APK 附加到 GitHub Release。它不会生成已签名的生产 APK。
+
+手动运行 `Release Android APK` 工作流只验证构建，不创建 Release。发布完成后在 GitHub 的 Actions 页面确认工作流成功，再在 Releases 页面确认以下内容：
+
+- 标题格式为 `版本 <版本号> (v<版本号>)`
+- APK 附件存在且版本号正确
+- 预发布 tag 被标记为 prerelease
+- 自动更新日志按 PR label 分类
+
+若构建失败，先修复并推送修复提交，再使用新的版本号发布。不要删除、移动或强推已经发布的同名 tag；如需删除 Release 或 tag，先明确评估影响并取得授权。
+
+### 更新日志分类
+
+更新日志分类依赖 Pull Request label，约定见 [`.github/release.yml`](.github/release.yml)。为 PR 添加标签可使用 GitHub 页面，也可使用：
+
+```bash
+gh pr edit <PR编号> --repo lantianz/vido --add-label feature
+```
+
+可用分类标签为 `feature`、`enhancement`、`bug`、`fix`、`documentation`、`chore`、`dependencies` 和 `skip-changelog`。Conventional Commits 有助于阅读提交历史，但不会自动为 PR 添加 label。

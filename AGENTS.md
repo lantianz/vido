@@ -15,5 +15,9 @@
 ## Commits And Releases
 
 - Read `.agents/skills/commit-convention/SKILL.md` before preparing commits or release tags.
+- Read `.agents/skills/release-publish/SKILL.md` before any release-related operation.
 - Keep commits focused. Use Conventional Commit messages and label Pull Requests so GitHub Release Notes can categorize them.
 - Release tags must be semantic and prefixed with `v`, for example `v1.2.3` or `v1.2.3-beta.1`.
+- AI may create commits and push ordinary branches only when the user explicitly requests the synchronization. It must not create, push, move, delete, or recreate a release tag unless the user explicitly names the version to publish.
+- Before an authorized release, verify a clean worktree, that `main` is synchronized, and that the exact remote tag does not already exist. After pushing the tag, verify the GitHub Actions run and Release attachment.
+- On a failed release, inspect the failure first. Do not force-push, retag, or delete a Release/tag as a retry; require explicit user authorization for destructive release recovery.
