@@ -1,0 +1,32 @@
+# Gradle and Android build outputs
+.gradle/
+build/
+**/build/
+
+# Local Android SDK configuration
+local.properties
+
+# IDE files
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# Kotlin and native build caches
+.kotlin/
+.cxx/
+externalNativeBuild/
+
+# Signing material and local release configuration
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Android Studio profiling and generated reports
+captures/
+*.hprof
+*.apk
+*.aab
+!gradle/wrapper/gradle-wrapper.jar
