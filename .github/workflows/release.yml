@@ -1,0 +1,115 @@
+name: Release Android APK
+
+# 仅在推送 v* tag 时自动发布；手动触发只用于构建调试，不会创建 Release。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "手动构建时可选版本号，例如 1.2.3-dev.1"
+        required: false
+        type: string
+
+# 创建 GitHub Release 和上传附件所需的最小权限。
+permissions:
+  contents: write
+
+# 同一 ref 重复触发时取消较旧的运行，避免重复发布同一个 tag。
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    name: Build and release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # 完整历史让 GitHub 能为 Release 生成完整更新日志。
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant Gradle wrapper permission
+        run: chmod +x gradlew
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        env:
+          MANUAL_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" == v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            IS_RELEASE=true
+          else
+            VERSION="${MANUAL_VERSION:-0.0.0-dev.${GITHUB_RUN_NUMBER}}"
+            IS_RELEASE=false
+          fi
+
+          # GitHub 的 tag 过滤只能匹配 v*，这里额外保证自动发布 tag 为语义化版本。
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "版本号必须是语义化版本：${VERSION}" >&2
+            exit 1
+          fi
+
+          if [[ "${VERSION}" == *-* ]]; then
+            PRERELEASE=true
+          else
+            PRERELEASE=false
+          fi
+
+          # Android versionCode 必须递增；偏移量确保它高于仓库已有的本地调试版本。
+          VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))
+
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "version_code=${VERSION_CODE}" >> "${GITHUB_OUTPUT}"
+          echo "is_release=${IS_RELEASE}" >> "${GITHUB_OUTPUT}"
+          echo "prerelease=${PRERELEASE}" >> "${GITHUB_OUTPUT}"
+
+      # Gradle 会下载项目声明的依赖；先执行现有单元测试，再构建 debug APK。
+      - name: Test and assemble debug APK
+        run: >-
+          ./gradlew --no-daemon testDebugUnitTest assembleDebug
+          -PversionName=${{ steps.version.outputs.version }}
+          -PversionCode=${{ steps.version.outputs.version_code }}
+
+      # 版本号同时用于产物文件名，便于从 artifact 或 Release 直接辨识版本。
+      - name: Prepare release artifact
+        shell: bash
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/debug/app-debug.apk "release/Vido-${{ steps.version.outputs.version }}-debug.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vido-${{ steps.version.outputs.version }}-debug-apk
+          path: release/Vido-${{ steps.version.outputs.version }}-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      # workflow_dispatch 不发布；只有 push 的 v* tag 自动创建 Release。
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && steps.version.outputs.is_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 版本 ${{ steps.version.outputs.version }} (${{ github.ref_name }})
+          tag_name: ${{ github.ref_name }}
+          files: release/Vido-${{ steps.version.outputs.version }}-debug.apk
+          generate_release_notes: true
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

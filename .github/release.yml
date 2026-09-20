@@ -1,0 +1,27 @@
+# GitHub 自动生成 Release Notes 的分类规则。
+# PR 必须具有下列对应 label 才会被分到正确分类。
+# Conventional Commits（feat:、fix:、docs: 等）有助于保持提交历史清晰，
+# 但 GitHub 不会据此自动添加 label；若需要自动映射，请另行添加 labeler 工作流。
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+  categories:
+    - title: "🚀 新功能"
+      labels:
+        - feature
+        - enhancement
+    - title: "🐛 问题修复"
+      labels:
+        - bug
+        - fix
+    - title: "📝 文档更新"
+      labels:
+        - documentation
+    - title: "🔧 维护/依赖"
+      labels:
+        - chore
+        - dependencies
+    - title: "📦 其他变更"
+      labels:
+        - "*"

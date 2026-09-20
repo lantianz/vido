@@ -7,6 +7,9 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val releaseVersionName = providers.gradleProperty("versionName").getOrElse("1.0.11")
+val releaseVersionCode = providers.gradleProperty("versionCode").map { it.toInt() }.getOrElse(12)
+
 android {
     namespace = "com.vido.local"
     compileSdk = 35
@@ -15,8 +18,8 @@ android {
         applicationId = "com.vido.local"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.0.11"
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
     }
 
     buildFeatures { compose = true; buildConfig = true }

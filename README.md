@@ -48,3 +48,14 @@ macOS / Linux：
 推送至 `main`、向 `main` 发起 Pull Request 或手动触发工作流时，GitHub Actions 会使用 JDK 17 构建 debug APK，并将其作为 `Vido-debug-apk` 构建产物保存 14 天。
 
 仓库不包含签名密钥。CI 产物是 debug APK；发布签名 APK 需要在仓库 Secrets 中单独配置签名材料和发布流程。
+
+## 发布
+
+创建并推送符合语义化版本的 tag（例如 `v1.2.3`）会触发发布工作流。工作流会将去掉 `v` 的版本号写入 APK 的 `versionName`，并以 GitHub Actions 运行号生成递增的 `versionCode`，随后上传 APK 并创建 GitHub Release。
+
+```bash
+git tag -a v1.2.3 -m "v1.2.3"
+git push origin v1.2.3
+```
+
+带预发布标识的 tag（例如 `v1.2.3-beta.1`）会创建预发布 Release。更新日志分类依赖 Pull Request label，约定见 [`.github/release.yml`](.github/release.yml)。
